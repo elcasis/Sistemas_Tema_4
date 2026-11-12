@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CPU Scheduler Lab — Entrenador de Planificación de Procesos (SSOO)</title>
+  <style>
+    :root {
+      --bg-base: #050505;
+      --bg-card: #0c0d10;
+      --bg-elevated: #14161b;
+      --bg-input: #090a0d;
+      --border: #222630;
+      --border-light: #2e3442;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-soft: rgba(59, 130, 246, 0.14);
+      --success: #10b981;
+      --success-soft: rgba(16, 185, 129, 0.14);
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.14);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.14);
+      --font-scale: 1;
+      --radius: 12px;
+      --shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+    }
+
+    body.light-theme {
+      --bg-base: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-elevated: #f1f5f9;
+      --bg-input: #ffffff;
+      --border: #e2e8f0;
+      --border-light: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-soft: rgba(37, 99, 235, 0.1);
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: calc(16px * var(--font-scale));
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      line-height: 1.55;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    /* Topbar */
+    header.topbar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 1rem;
+      box-shadow: 0 0 16px rgba(59, 130, 246, 0.45);
+    }
+
+    .brand-title h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title span {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .toolbar-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .control-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.2rem;
+      gap: 0.2rem;
+    }
+
+    .btn-icon {
+      background: transparent;
+      color: var(--text-main);
+      border: none;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.82rem;
+      transition: background 0.15s;
+    }
+
+    .btn-icon:hover {
+      background: var(--border);
+    }
+
+    .font-indicator {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding: 0 0.4rem;
+      min-width: 3.1rem;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Container & Stepper */
+    main.container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      flex: 1;
+    }
+
+    .wizard-progress {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.6rem;
+    }
+
+    @media (max-width: 820px) {
+      .steps-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      opacity: 0.55;
+      transition: all 0.2s;
+    }
+
+    .step-item.active {
+      opacity: 1;
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .step-item.completed {
+      opacity: 0.9;
+      border-color: var(--success);
+    }
+
+    .step-badge {
+      width: 1.65rem;
+      height: 1.65rem;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      display: grid;
+      place-items: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-item.active .step-badge {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .step-item.completed .step-badge {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+    }
+
+    .step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .step-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    /* Cards & Layout */
+    .screen-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      display: none;
+      animation: fadeIn 0.22s ease-out;
+    }
+
+    .screen-card.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .screen-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .screen-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .screen-header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 0.2rem;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.6rem 1.15rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border-color: var(--border-light);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border);
+    }
+
+    .btn-hint {
+      background: var(--warning-soft);
+      color: var(--warning);
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-hint:hover {
+      background: rgba(245, 158, 11, 0.24);
+    }
+
+    .btn-danger {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    /* Hint & Feedback Boxes */
+    .hint-box {
+      background: var(--warning-soft);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: var(--text-main);
+      padding: 0.9rem 1.1rem;
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .hint-box.visible {
+      display: block;
+    }
+
+    .hint-box strong {
+      color: var(--warning);
+    }
+
+    .feedback-banner {
+      padding: 0.9rem 1.1rem;
+      border-radius: 8px;
+      margin-top: 1.1rem;
+      font-size: 0.92rem;
+      font-weight: 500;
+      display: none;
+    }
+
+    .feedback-banner.ok {
+      display: block;
+      background: var(--success-soft);
+      border: 1px solid var(--success);
+      color: #34d399;
+    }
+
+    body.light-theme .feedback-banner.ok {
+      color: #065f46;
+    }
+
+    .feedback-banner.err {
+      display: block;
+      background: var(--danger-soft);
+      border: 1px solid var(--danger);
+      color: #f87171;
+    }
+
+    body.light-theme .feedback-banner.err {
+      color: #991b1b;
+    }
+
+    /* Forms & Tables */
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    @media (max-width: 820px) {
+      .config-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem;
+    }
+
+    .panel h3 {
+      font-size: 0.98rem;
+      margin-bottom: 0.85rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 0.8rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      background: var(--bg-input);
+      color: var(--text-main);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    select:focus, input:focus {
+      outline: 2px solid var(--accent);
+      border-color: transparent;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 0.65rem 0.85rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .proc-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #fff;
+    }
+
+    /* Summary Badges */
+    .rules-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .rule-chip {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .rule-chip strong {
+      color: var(--text-main);
+    }
+
+    /* Step 1: Queue Ordering */
+    .check-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .check-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 0.65rem 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+
+    .check-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .queue-builder {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      min-height: 4.2rem;
+      padding: 0.85rem;
+      background: var(--bg-input);
+      border: 1px dashed var(--border-light);
+      border-radius: 8px;
+      margin-top: 0.6rem;
+    }
+
+    .queue-slot {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .queue-slot .pos-num {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .slot-arrows button {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      border-radius: 4px;
+      padding: 0.15rem 0.4rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .slot-arrows button:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Step 2: Gantt Builder */
+    .gantt-wrapper {
+      background: var(--bg-input);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      padding: 1.2rem 1rem 1.8rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+
+    .gantt-track {
+      display: flex;
+      min-height: 64px;
+      border-radius: 6px;
+      overflow: visible;
+      position: relative;
+      align-items: stretch;
+    }
+
+    .gantt-block {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-weight: 700;
+      border-right: 2px solid var(--bg-base);
+      min-width: 44px;
+      padding: 0.4rem 0.25rem;
+      transition: all 0.2s;
+    }
+
+    .gantt-block .b-dur {
+      font-size: 0.72rem;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+
+    .gantt-time-start,
+    .gantt-time-end {
+      position: absolute;
+      bottom: -1.45rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .gantt-time-start {
+      left: -4px;
+    }
+
+    .gantt-time-end {
+      right: -6px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 820px) {
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Input validation states */
+    input.input-ok {
+      border-color: var(--success) !important;
+      background: var(--success-soft) !important;
+    }
+
+    input.input-err {
+      border-color: var(--danger) !important;
+      background: var(--danger-soft) !important;
+    }
+
+    .cell-formula-feedback {
+      display: block;
+      font-size: 0.73rem;
+      margin-top: 0.25rem;
+      color: #f87171;
+    }
+
+    body.light-theme .cell-formula-feedback {
+      color: #dc2626;
+    }
+
+    .footer-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    footer.app-footer {
+      text-align: center;
+      padding: 1.2rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA SUPERIOR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">CPU</div>
+      <div class="brand-title">
+        <h1>Entrenador de Planificación de la CPU</h1>
+        <span>Sistemas Operativos · Cálculo Temporal y Diagramas de Gantt Paso a Paso</span>
+      </div>
+    </div>
+
+    <div class="toolbar-controls">
+      <div class="control-pill" title="Ajustar tamaño de fuente">
+        <button class="btn-icon" onclick="changeFontSize(-0.08)" aria-label="Reducir fuente">A-</button>
+        <span class="font-indicator" id="fontIndicator">100%</span>
+        <button class="btn-icon" onclick="changeFontSize(0.08)" aria-label="Aumentar fuente">A+</button>
+      </div>
+      <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">Modo Claro</button>
+      <button class="btn btn-secondary" onclick="goToScreen(0)">Reiniciar / Cambiar Ejercicio</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- BARRA DE PROGRESO (WIZARD 5 PANTALLAS) -->
+    <nav class="wizard-progress" aria-label="Progreso del ejercicio">
+      <div class="steps-grid" id="stepperGrid">
+        <div class="step-item active" data-step="0">
+          <div class="step-badge">0</div>
+          <div>
+            <div class="step-label">Configuración</div>
+            <span class="step-sub">Enunciado y Algoritmo</span>
+          </div>
+        </div>
+        <div class="step-item" data-step="1">
+          <div class="step-badge">1</div>
+          <div>
+            <div class="step-label">Paso 1: Cola Inicial</div>
+            <span class="step-sub">Estado en t = 0</span>
+          </div>
+        </div>
+        <div class="step-item" data-step="2">
+          <div class="step-badge">2</div>
+          <div>
+            <div class="step-label">Paso 2: Diagrama Gantt</div>
+            <span class="step-sub">Simulación bloque a bloque</span>
+          </div>
+        </div>
+        <div class="step-item" data-step="3">
+          <div class="step-badge">3</div>
+          <div>
+            <div class="step-label">Paso 3: Tiempos Indiv.</div>
+            <span class="step-sub">Tfin, Tret y Tesp</span>
+          </div>
+        </div>
+        <div class="step-item" data-step="4">
+          <div class="step-badge">4</div>
+          <div>
+            <div class="step-label">Paso 4: Medias y Final</div>
+            <span class="step-sub">tme, tmr y Comparación</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- =========================================================
+         PANTALLA 1 (ÍNDICE 0): CONFIGURACIÓN Y SELECCIÓN
+         ========================================================= -->
+    <section class="screen-card active" id="screen-0">
+      <div class="screen-header">
+        <div>
+          <h2>Pantalla 1: Configuración y Selección del Ejercicio</h2>
+          <p>Elige un preset oficial de examen/cuaderno o genera un ejercicio aleatorio a medida.</p>
+        </div>
+        <button class="btn btn-hint" onclick="toggleHint('hint-0')">💡 Pista Teórica</button>
+      </div>
+
+      <div class="hint-box" id="hint-0">
+        <strong>Resumen de algoritmos de planificación a corto plazo:</strong><br>
+        • <strong>FCFS (First-Come, First-Served):</strong> Cola FIFO estricta según instante de llegada (no apropiativo). Sensible al <em>efecto convoy</em>.<br>
+        • <strong>SJF (Shortest-Job-First) / SRTF:</strong> Selecciona el proceso con menor ráfaga de CPU. Si es apropiativo (SRTF), desaloja si llega un proceso con ráfaga menor que la restante.<br>
+        • <strong>Prioridades (No apropiativo / Apropiativo):</strong> Asigna la CPU al proceso de mayor prioridad (configurable si el número más bajo como 0 es mayor prioridad o viceversa).<br>
+        • <strong>Round Robin (RR):</strong> Asigna un cuanto máximo <em>q</em> ms en cola FIFO. Si agota el cuanto, el proceso se inserta al final de la cola.<br>
+        • <strong>Latencia de activación (Dispatcher):</strong> Sobrecarga del kernel (ej. 1 ms) insertada en cada cambio de contexto entre dos procesos.
+      </div>
+
+      <div class="config-grid">
+        <!-- Selector de Modo y Presets -->
+        <div class="panel">
+          <h3>1. Modo de Ejercicio</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="presetSelect">Presets de Examen / Cuaderno UNIR</label>
+              <select id="presetSelect" onchange="loadPreset(this.value)">
+                <option value="unir_ej1_fcfs">Cuaderno Ej. 1 — FCFS Clásico (5 procesos, t=0)</option>
+                <option value="unir_ej1_inv">Cuaderno Ej. 1B — FCFS Orden Inverso (P5..P1)</option>
+                <option value="unir_ej2_sjf">Cuaderno Ej. 2 — SJF No Apropiativo (5 procesos)</option>
+                <option value="unir_ej3_prio_low">Cuaderno Ej. 3A — Prioridades (Núm. bajo = Más alta)</option>
+                <option value="unir_ej3_prio_high">Cuaderno Ej. 3B — Prioridades (Núm. alto = Más alta)</option>
+                <option value="unir_ej4_rr4">Cuaderno Ej. 4 — Round Robin (Cuanto q = 4 ms)</option>
+                <option value="unir_ej6_disp">Cuaderno Ej. 6 — RR (q = 4 ms) + Latencia Activación (1 ms)</option>
+                <option value="unir_ej10_noap">Cuaderno Ej. 10A — Prioridades Dinámico No Apropiativo (t > 0)</option>
+                <option value="unir_ej10_ap">Cuaderno Ej. 10B — Prioridades Dinámico Apropiativo (t > 0)</option>
+                <option value="unir_tabla3_sjf">Teoría Tabla 3 — Comparativa FCFS/SJF (4 procesos)</option>
+                <option value="exam_srtf">Examen Clásico — SJF Apropiativo (SRTF con llegadas t > 0)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.5rem;">
+            <button class="btn btn-secondary" onclick="generateRandomExercise()">🎲 Generar Ejercicio Aleatorio</button>
+            <button class="btn btn-secondary" onclick="addCustomProcess()">➕ Añadir Proceso</button>
+            <button class="btn btn-secondary" onclick="removeLastProcess()">➖ Quitar Último</button>
+          </div>
+        </div>
+
+        <!-- Parámetros del Algoritmo -->
+        <div class="panel">
+          <h3>2. Parámetros del Planificador</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="algSelect">Algoritmo de Planificación</label>
+              <select id="algSelect" onchange="onParamsChange()">
+                <option value="FCFS">FCFS (First-Come, First-Served)</option>
+                <option value="SJF_NP">SJF No Apropiativo (Shortest Job First)</option>
+                <option value="SJF_P">SJF Apropiativo (SRTF - Menor ráfaga restante)</option>
+                <option value="PRIO_NP">Prioridades No Apropiativo (Cooperativo)</option>
+                <option value="PRIO_P">Prioridades Apropiativo (Con desalojo)</option>
+                <option value="RR">Round Robin (Por turnos con cuanto q)</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="quantumGroup">
+              <label for="quantumInput">Cuanto temporal q (ms)</label>
+              <input type="number" id="quantumInput" min="1" max="50" value="4" onchange="onParamsChange()" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" id="prioModeGroup">
+              <label for="prioConvention">Convenio de Prioridad</label>
+              <select id="prioConvention" onchange="onParamsChange()">
+                <option value="LOW_IS_HIGH">Número más bajo = Mayor prioridad (0 es máxima)</option>
+                <option value="HIGH_IS_HIGH">Número más alto = Mayor prioridad</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="dispatcherInput">Latencia de Activación / Dispatcher (ms)</label>
+              <input type="number" id="dispatcherInput" min="0" max="5" value="0" onchange="onParamsChange()" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla editable del enunciado -->
+      <div class="panel">
+        <h3>
+          <span>3. Tabla de Datos del Enunciado (Puedes editar los valores directamente)</span>
+          <span style="font-size:0.78rem; color:var(--text-muted); font-weight:400;">Criterio de desempate: FIFO (orden de llegada a la cola / orden de fila)</span>
+        </h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Proceso</th>
+                <th>Orden Fila</th>
+                <th>Instante de llegada (ms)</th>
+                <th>Ráfaga de CPU (ms)</th>
+                <th>Prioridad</th>
+              </tr>
+            </thead>
+            <tbody id="configTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <div style="font-size:0.85rem; color:var(--text-muted);">
+          Revisa los datos del enunciado antes de comenzar el asistente paso a paso.
+        </div>
+        <button class="btn btn-primary" onclick="startTraining()">Comenzar entrenamiento →</button>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANTALLA 2 (ÍNDICE 1): PASO 1 — ESTADO INICIAL Y COLA t=0
+         ========================================================= -->
+    <section class="screen-card" id="screen-1">
+      <div class="screen-header">
+        <div>
+          <h2>Pantalla 2: Paso 1 — Estado Inicial y Orden de Cola en t = 0</h2>
+          <p>Identifica qué procesos están disponibles en el instante inicial t = 0 y ordénalos según saldrán a la CPU.</p>
+        </div>
+        <button class="btn btn-hint" onclick="toggleHint('hint-1')">💡 Pista del Paso 1</button>
+      </div>
+
+      <div class="rules-bar" id="rulesBar-1"></div>
+
+      <div class="hint-box" id="hint-1"></div>
+
+      <div class="config-grid">
+        <div class="panel">
+          <h3>Referencia del Enunciado</h3>
+          <div class="table-wrap" id="refTableStep1"></div>
+        </div>
+
+        <div class="panel">
+          <h3>1A. ¿Qué procesos han llegado ya en t = 0?</h3>
+          <p style="font-size:0.84rem; color:var(--text-muted); margin-bottom:0.6rem;">
+            Marca todos los procesos cuyo instante de llegada sea <strong>t = 0 ms</strong>:
+          </p>
+          <div class="check-cards" id="step1AvailableChecks"></div>
+
+          <h3 style="margin-top:1.3rem;">1B. Orden de la Cola de Listos en t = 0 (1º = primero en entrar a CPU)</h3>
+          <p style="font-size:0.84rem; color:var(--text-muted);">
+            Usa los botones ◀ ▶ para ordenar los procesos disponibles en <strong>t = 0</strong> desde el primero que tomará la CPU hasta el último:
+          </p>
+          <div class="queue-builder" id="step1QueueBuilder"></div>
+        </div>
+      </div>
+
+      <div class="feedback-banner" id="feedback-1"></div>
+
+      <div class="footer-actions">
+        <button class="btn btn-secondary" onclick="goToScreen(0)">← Volver a Configuración</button>
+        <div style="display:flex; gap:0.6rem;">
+          <button class="btn btn-primary" onclick="validateStep1()">✓ Comprobar paso 1</button>
+          <button class="btn btn-success" id="btnNext-1" onclick="goToScreen(2)" disabled>Avanzar al Diagrama de Gantt →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANTALLA 3 (ÍNDICE 2): PASO 2 — DIAGRAMA DE GANTT INTERACTIVO
+         ========================================================= -->
+    <section class="screen-card" id="screen-2">
+      <div class="screen-header">
+        <div>
+          <h2>Pantalla 3: Paso 2 — Construcción Interactiva del Diagrama de Gantt</h2>
+          <p>Simula la planificación bloque a bloque desde t = 0 hasta completar todas las ráfagas.</p>
+        </div>
+        <button class="btn btn-hint" onclick="toggleHint('hint-2')">💡 Pista del Paso 2</button>
+      </div>
+
+      <div class="rules-bar" id="rulesBar-2"></div>
+      <div class="hint-box" id="hint-2"></div>
+
+      <div class="status-grid">
+        <!-- Estado actual de procesos y ráfagas restantes -->
+        <div class="panel">
+          <h3>Estado de Procesos en t = <span id="currentTimeLabel">0</span> ms</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Proceso</th>
+                  <th>Llegada</th>
+                  <th>Ráfaga Total</th>
+                  <th>Ráfaga Restante</th>
+                  <th>Prioridad</th>
+                  <th>Estado en t actual</th>
+                </tr>
+              </thead>
+              <tbody id="step2StatusBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cola de listos en tiempo real + Constructor de bloque -->
+        <div class="panel">
+          <h3>Cola de Listos en t = <span id="currentTimeLabel2">0</span> ms</h3>
+          <div id="liveReadyQueueBox" style="padding:0.65rem; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; margin-bottom:1rem; min-height:3rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;"></div>
+
+          <h3>Añadir siguiente bloque al Diagrama de Gantt</h3>
+          <div class="form-row" style="margin-top:0.5rem;">
+            <div class="form-group">
+              <label for="ganttProcSelect">¿Quién entra en la CPU en t = <span id="currentTimeLabel3">0</span>?</label>
+              <select id="ganttProcSelect"></select>
+            </div>
+            <div class="form-group">
+              <label for="ganttDurInput">Duración del bloque (ms)</label>
+              <input type="number" id="ganttDurInput" min="1" max="100" value="4" />
+            </div>
+          </div>
+
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btnAddBlock" onclick="tryAddGanttBlock()">➕ Añadir Bloque y Validar</button>
+            <button class="btn btn-secondary" onclick="undoGanttBlock()">↩ Deshacer último bloque</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lienzo del Diagrama de Gantt -->
+      <div class="panel">
+        <h3>Lienzo del Diagrama de Gantt (Escala Temporal en ms)</h3>
+        <div class="gantt-wrapper">
+          <div class="gantt-track" id="ganttTrack"></div>
+        </div>
+      </div>
+
+      <div class="feedback-banner" id="feedback-2"></div>
+
+      <div class="footer-actions">
+        <button class="btn btn-secondary" onclick="goToScreen(1)">← Paso Anterior</button>
+        <div style="display:flex; gap:0.6rem;">
+          <button class="btn btn-primary" onclick="validateStep2Complete()">✓ Comprobar Diagrama Completo</button>
+          <button class="btn btn-success" id="btnNext-2" onclick="goToScreen(3)" disabled>Avanzar a Tiempos Individuales →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANTALLA 4 (ÍNDICE 3): PASO 3 — CÁLCULO DE TIEMPOS INDIVIDUALES
+         ========================================================= -->
+    <section class="screen-card" id="screen-3">
+      <div class="screen-header">
+        <div>
+          <h2>Pantalla 4: Paso 3 — Cálculo de Tiempos Individuales</h2>
+          <p>Con el Diagrama de Gantt completado como referencia, calcula Tfin, Tret y Tesp para cada proceso.</p>
+        </div>
+        <button class="btn btn-hint" onclick="toggleHint('hint-3')">💡 Pista de Fórmulas</button>
+      </div>
+
+      <div class="rules-bar" id="rulesBar-3"></div>
+
+      <div class="hint-box" id="hint-3">
+        <strong>Fórmulas de Cálculo Temporal por Proceso:</strong><br>
+        • <strong>Tiempo de finalización (T<sub>fin</sub>):</strong> Instante en el eje temporal del diagrama de Gantt en el que el proceso termina su <em>última</em> ráfaga de CPU.<br>
+        • <strong>Tiempo de retorno o ejecución (T<sub>ret</sub>):</strong> Tiempo total desde que el proceso llega a la cola hasta que finaliza: <code>T<sub>ret</sub> = T<sub>fin</sub> - T<sub>llegada</sub></code>.<br>
+        • <strong>Tiempo de espera (T<sub>esp</sub>):</strong> Tiempo total que el proceso ha permanecido esperando en la cola de listos: <code>T<sub>esp</sub> = T<sub>ret</sub> - Ráfaga</code>.
+      </div>
+
+      <!-- Diagrama de Gantt de referencia arriba -->
+      <div class="panel" style="margin-bottom:1.25rem;">
+        <h3>Diagrama de Gantt Completado (Referencia)</h3>
+        <div class="gantt-wrapper">
+          <div class="gantt-track" id="ganttTrackRef3"></div>
+        </div>
+      </div>
+
+      <!-- Tabla de inputs numéricos -->
+      <div class="panel">
+        <h3>Introduce los tiempos de cada proceso (en ms)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Proceso</th>
+                <th>T<sub>llegada</sub></th>
+                <th>Ráfaga CPU</th>
+                <th>T<sub>fin</sub> (Finalización)</th>
+                <th>T<sub>ret</sub> = T<sub>fin</sub> − T<sub>llegada</sub></th>
+                <th>T<sub>esp</sub> = T<sub>ret</sub> − Ráfaga</th>
+              </tr>
+            </thead>
+            <tbody id="step3TableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="feedback-banner" id="feedback-3"></div>
+
+      <div class="footer-actions">
+        <button class="btn btn-secondary" onclick="goToScreen(2)">← Volver al Gantt</button>
+        <div style="display:flex; gap:0.6rem;">
+          <button class="btn btn-primary" onclick="validateStep3()">✓ Comprobar Tiempos Individuales</button>
+          <button class="btn btn-success" id="btnNext-3" onclick="goToScreen(4)" disabled>Avanzar al Cálculo de Medias →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         PANTALLA 5 (ÍNDICE 4): PASO 4 — CÁLCULO DE MEDIAS Y RESUMEN FINAL
+         ========================================================= -->
+    <section class="screen-card" id="screen-4">
+      <div class="screen-header">
+        <div>
+          <h2>Pantalla 5: Paso 4 — Cálculo de Medias y Resumen de Rendimiento</h2>
+          <p>Calcula el Tiempo Medio de Espera (t<sub>me</sub>) y el Tiempo Medio de Retorno (t<sub>mr</sub>).</p>
+        </div>
+        <button class="btn btn-hint" onclick="toggleHint('hint-4')">💡 Pista del Paso 4</button>
+      </div>
+
+      <div class="hint-box" id="hint-4">
+        <strong>Cálculo de valores medios:</strong><br>
+        • Suma todos los tiempos de espera individuales (<code>Σ T<sub>esp</sub></code>) y divide entre el número total de procesos (<code>N</code>).<br>
+        • Suma todos los tiempos de retorno individuales (<code>Σ T<sub>ret</sub></code>) y divide entre <code>N</code>.<br>
+        • Puedes usar punto o coma para los decimales (se admite un margen de redondeo de ±0.05).
+      </div>
+
+      <!-- Referencia rápida de la tabla validada -->
+      <div class="config-grid">
+        <div class="panel">
+          <h3>Tabla de Tiempos Validados</h3>
+          <div class="table-wrap" id="step4RefTable"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Cálculo de Medias del Planificador</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="avgWaitInput">Tiempo Medio de Espera (t<sub>me</sub> en ms)</label>
+              <input type="text" id="avgWaitInput" placeholder="Ej: 14.2" />
+              <span class="cell-formula-feedback" id="avgWaitFeedback"></span>
+            </div>
+            <div class="form-group">
+              <label for="avgTurnInput">Tiempo Medio de Retorno (t<sub>mr</sub> en ms)</label>
+              <input type="text" id="avgTurnInput" placeholder="Ej: 20.6" />
+              <span class="cell-formula-feedback" id="avgTurnFeedback"></span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="validateStep4()" style="width:100%; margin-top:0.5rem;">
+            ✓ Comprobar Medias y Finalizar Ejercicio
+          </button>
+        </div>
+      </div>
+
+      <div class="feedback-banner" id="feedback-4"></div>
+
+      <!-- Panel de Resumen Final (Visible tras validar Paso 4) -->
+      <div class="panel" id="finalSummaryPanel" style="display:none; margin-top:1.5rem; border-color:var(--success);">
+        <h3 style="color:var(--success); font-size:1.15rem;">🏆 ¡Entrenamiento Completado con Éxito!</h3>
+        <div class="form-row" style="margin-top:0.8rem;" id="scoreCardsBox"></div>
+
+        <!-- Comparador de Algoritmos sobre el mismo enunciado -->
+        <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border);">
+          <h3>Comparativa de Algoritmos con este mismo Enunciado</h3>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+            Aquí puedes ver los resultados que has ido resolviendo o resolver este mismo conjunto de procesos con otro algoritmo para comparar su rendimiento:
+          </p>
+          <div class="table-wrap" id="comparisonHistoryTable" style="margin-bottom:1rem;"></div>
+
+          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+            <select id="switchAlgSelect" style="max-width:300px;">
+              <option value="FCFS">Resolver mismo enunciado con FCFS</option>
+              <option value="SJF_NP">Resolver mismo enunciado con SJF (No Apropiativo)</option>
+              <option value="SJF_P">Resolver mismo enunciado con SJF Apropiativo (SRTF)</option>
+              <option value="PRIO_NP">Resolver mismo enunciado con Prioridades (No Apropiativo)</option>
+              <option value="PRIO_P">Resolver mismo enunciado con Prioridades (Apropiativo)</option>
+              <option value="RR">Resolver mismo enunciado con Round Robin (q=4)</option>
+            </select>
+            <button class="btn btn-primary" onclick="retrySameWithOtherAlgorithm()">
+              🔄 Resolver mismo enunciado con este algoritmo
+            </button>
+            <button class="btn btn-secondary" onclick="goToScreen(0)">
+              🆕 Nuevo ejercicio
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    Entrenador Interactivo de Planificación de la CPU (Sistemas Operativos) · Single-File Web App lista para GitHub Pages
+  </footer>
+
+  <script>
+    /* =========================================================================
+       PALETA DE COLORES Y CONSTANTES
+       ========================================================================= */
+    const PROC_COLORS = [
+      '#3b82f6', // P1 Azul
+      '#10b981', // P2 Esmeralda
+      '#8b5cf6', // P3 Violeta
+      '#f59e0b', // P4 Ámbar
+      '#ec4899', // P5 Rosa
+      '#06b6d4', // P6 Cian
+      '#ef4444'  // P7 Rojo
+    ];
+    const DISP_COLOR = '#475569';
+    const IDLE_COLOR = '#334155';
+
+    /* =========================================================================
+       PRESETS DEL CUADERNO DE EJERCICIOS (UNIR TEMA 4) Y EXÁMENES
+       ========================================================================= */
+    const PRESETS = {
+      unir_ej1_fcfs: {
+        name: 'Cuaderno Ej. 1 — FCFS Clásico (tme = 14,2 ms)',
+        algorithm: 'FCFS',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 0, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej1_inv: {
+        name: 'Cuaderno Ej. 1B — FCFS Orden Inverso (tme = 11,6 ms)',
+        algorithm: 'FCFS',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P5', order: 1, arrival: 0, burst: 5, priority: 1 },
+          { id: 'P4', order: 2, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P2', order: 4, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P1', order: 5, arrival: 0, burst: 8, priority: 3 }
+        ]
+      },
+      unir_ej2_sjf: {
+        name: 'Cuaderno Ej. 2 — SJF No Apropiativo (tme = 8,4 ms)',
+        algorithm: 'SJF_NP',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 0, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej3_prio_low: {
+        name: 'Cuaderno Ej. 3A — Prioridades Núm. Bajo = Mayor Prio (tme = 8,6 ms)',
+        algorithm: 'PRIO_NP',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 0, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej3_prio_high: {
+        name: 'Cuaderno Ej. 3B — Prioridades Núm. Alto = Mayor Prio (tme = 17 ms)',
+        algorithm: 'PRIO_NP',
+        quantum: 4,
+        prioConvention: 'HIGH_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 0, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej4_rr4: {
+        name: 'Cuaderno Ej. 4 — Round Robin q = 4 ms (tme = 14,8 ms)',
+        algorithm: 'RR',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 0, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej6_disp: {
+        name: 'Cuaderno Ej. 6 — RR (q = 4 ms) + Latencia Activación 1 ms (tme = 19,6 ms)',
+        algorithm: 'RR',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 1,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 0, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej10_noap: {
+        name: 'Cuaderno Ej. 10A — Prioridades Dinámico No Apropiativo con llegadas t > 0 (tme = 7 ms)',
+        algorithm: 'PRIO_NP',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 8, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 8, burst: 5, priority: 1 }
+        ]
+      },
+      unir_ej10_ap: {
+        name: 'Cuaderno Ej. 10B — Prioridades Dinámico Apropiativo con llegadas t > 0 (tme = 7 ms)',
+        algorithm: 'PRIO_P',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 4, priority: 2 },
+          { id: 'P3', order: 3, arrival: 0, burst: 12, priority: 6 },
+          { id: 'P4', order: 4, arrival: 8, burst: 3, priority: 0 },
+          { id: 'P5', order: 5, arrival: 8, burst: 5, priority: 1 }
+        ]
+      },
+      unir_tabla3_sjf: {
+        name: 'Teoría Tabla 3/4/5 — 4 Procesos (P1=8, P2=3, P3=5, P4=2)',
+        algorithm: 'SJF_NP',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 8, priority: 3 },
+          { id: 'P2', order: 2, arrival: 0, burst: 3, priority: 0 },
+          { id: 'P3', order: 3, arrival: 0, burst: 5, priority: 2 },
+          { id: 'P4', order: 4, arrival: 0, burst: 2, priority: 1 }
+        ]
+      },
+      exam_srtf: {
+        name: 'Examen Clásico — SJF Apropiativo (SRTF) con llegadas escalonadas',
+        algorithm: 'SJF_P',
+        quantum: 4,
+        prioConvention: 'LOW_IS_HIGH',
+        dispatcher: 0,
+        processes: [
+          { id: 'P1', order: 1, arrival: 0, burst: 7, priority: 2 },
+          { id: 'P2', order: 2, arrival: 2, burst: 4, priority: 1 },
+          { id: 'P3', order: 3, arrival: 4, burst: 1, priority: 0 },
+          { id: 'P4', order: 4, arrival: 5, burst: 4, priority: 3 }
+        ]
+      }
+    };
+
+    /* =========================================================================
+       ESTADO GLOBAL DE LA APLICACIÓN
+       ========================================================================= */
+    let fontScale = 1.0;
+    let state = {
+      currentScreen: 0,
+      algorithm: 'FCFS',
+      quantum: 4,
+      prioConvention: 'LOW_IS_HIGH',
+      dispatcher: 0,
+      processes: [],
+      solution: null,         // { blocks: [...], metrics: {...}, avgWait, avgTurn }
+      step1SelectedIds: new Set(),
+      step1QueueOrder: [],
+      userGanttBlocks: [],
+      mistakesCount: 0,
+      hintsUsed: 0,
+      comparisonHistory: []
+    };
+
+    /* =========================================================================
+       UTILIDADES DE UI (FUENTE, TEMA, HINTS, NAVEGACIÓN)
+       ========================================================================= */
+    function changeFontSize(delta) {
+      fontScale = Math.min(1.35, Math.max(0.82, +(fontScale + delta).toFixed(2)));
+      document.documentElement.style.setProperty('--font-scale', fontScale);
+      document.getElementById('fontIndicator').textContent = Math.round(fontScale * 100) + '%';
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeBtn').textContent = isLight ? 'Modo Black (Oscuro)' : 'Modo Claro';
+    }
+
+    function toggleHint(id) {
+      const box = document.getElementById(id);
+      if (!box.classList.contains('visible')) {
+        state.hintsUsed++;
+      }
+      box.classList.toggle('visible');
+    }
+
+    function getProcColor(procId) {
+      if (procId === 'DISP') return DISP_COLOR;
+      if (procId === 'IDLE') return IDLE_COLOR;
+      const idx = state.processes.findIndex(p => p.id === procId);
+      return PROC_COLORS[idx >= 0 ? idx % PROC_COLORS.length : 0];
+    }
+
+    function getAlgorithmLabel(alg) {
+      const map = {
+        FCFS: 'FCFS (First-Come, First-Served)',
+        SJF_NP: 'SJF No Apropiativo',
+        SJF_P: 'SJF Apropiativo (SRTF)',
+        PRIO_NP: 'Prioridades No Apropiativo',
+        PRIO_P: 'Prioridades Apropiativo',
+        RR: `Round Robin (q = ${state.quantum} ms)`
+      };
+      return map[alg] || alg;
+    }
+
+    function renderRulesBar(containerId) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const prioText = state.prioConvention === 'LOW_IS_HIGH'
+        ? 'Núm. más bajo = Mayor prioridad (0 > 1 > 2...)'
+        : 'Núm. más alto = Mayor prioridad';
+      el.innerHTML = `
+        <span class="rule-chip">Algoritmo: <strong>${getAlgorithmLabel(state.algorithm)}</strong></span>
+        ${state.algorithm === 'RR' ? `<span class="rule-chip">Cuanto q: <strong>${state.quantum} ms</strong></span>` : ''}
+        ${state.algorithm.startsWith('PRIO') ? `<span class="rule-chip">Convenio: <strong>${prioText}</strong></span>` : ''}
+        <span class="rule-chip">Latencia Activador: <strong>${state.dispatcher} ms</strong></span>
+        <span class="rule-chip">Desempate: <strong>FIFO (Orden de llegada / fila)</strong></span>
+      `;
+    }
+
+    function goToScreen(stepIdx) {
+      state.currentScreen = stepIdx;
+      document.querySelectorAll('.screen-card').forEach((card, idx) => {
+        card.classList.toggle('active', idx === stepIdx);
+      });
+      document.querySelectorAll('#stepperGrid .step-item').forEach((item, idx) => {
+        item.classList.remove('active', 'completed');
+        if (idx === stepIdx) item.classList.add('active');
+        else if (idx < stepIdx) item.classList.add('completed');
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* =========================================================================
+       PANTALLA 1: CONFIGURACIÓN Y PRESETS
+       ========================================================================= */
+    function loadPreset(presetKey) {
+      const p = PRESETS[presetKey];
+      if (!p) return;
+      state.algorithm = p.algorithm;
+      state.quantum = p.quantum;
+      state.prioConvention = p.prioConvention;
+      state.dispatcher = p.dispatcher;
+      state.processes = p.processes.map((proc, i) => ({ ...proc, order: i + 1 }));
+      state.comparisonHistory = [];
+      syncConfigControls();
+      renderConfigTable();
+    }
+
+    function syncConfigControls() {
+      document.getElementById('algSelect').value = state.algorithm;
+      document.getElementById('quantumInput').value = state.quantum;
+      document.getElementById('prioConvention').value = state.prioConvention;
+      document.getElementById('dispatcherInput').value = state.dispatcher;
+      document.getElementById('quantumGroup').style.opacity = state.algorithm === 'RR' ? '1' : '0.45';
+      document.getElementById('prioModeGroup').style.opacity = state.algorithm.startsWith('PRIO') ? '1' : '0.45';
+    }
+
+    function onParamsChange() {
+      state.algorithm = document.getElementById('algSelect').value;
+      state.quantum = Math.max(1, parseInt(document.getElementById('quantumInput').value, 10) || 4);
+      state.prioConvention = document.getElementById('prioConvention').value;
+      state.dispatcher = Math.max(0, parseInt(document.getElementById('dispatcherInput').value, 10) || 0);
+      syncConfigControls();
+    }
+
+    function renderConfigTable() {
+      const tbody = document.getElementById('configTableBody');
+      tbody.innerHTML = state.processes.map((p, idx) => `
+        <tr>
+          <td>
+            <span class="proc-pill" style="background:${getProcColor(p.id)}">${p.id}</span>
+          </td>
+          <td>#${p.order}</td>
+          <td>
+            <input type="number" min="0" max="50" value="${p.arrival}"
+              onchange="updateProcField(${idx}, 'arrival', this.value)" style="max-width:95px; text-align:center;" />
+          </td>
+          <td>
+            <input type="number" min="1" max="50" value="${p.burst}"
+              onchange="updateProcField(${idx}, 'burst', this.value)" style="max-width:95px; text-align:center;" />
+          </td>
+          <td>
+            <input type="number" min="0" max="20" value="${p.priority}"
+              onchange="updateProcField(${idx}, 'priority', this.value)" style="max-width:95px; text-align:center;" />
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function updateProcField(idx, field, val) {
+      const num = parseInt(val, 10);
+      if (field === 'burst') state.processes[idx][field] = Math.max(1, isNaN(num) ? 1 : num);
+      else state.processes[idx][field] = Math.max(0, isNaN(num) ? 0 : num);
+      renderConfigTable();
+    }
+
+    function addCustomProcess() {
+      if (state.processes.length >= 7) return;
+      const nextNum = state.processes.length + 1;
+      state.processes.push({
+        id: 'P' + nextNum,
+        order: nextNum,
+        arrival: 0,
+        burst: Math.floor(Math.random() * 8) + 2,
+        priority: Math.floor(Math.random() * 5)
+      });
+      renderConfigTable();
+    }
+
+    function removeLastProcess() {
+      if (state.processes.length <= 2) return;
+      state.processes.pop();
+      renderConfigTable();
+    }
+
+    function generateRandomExercise() {
+      const algs = ['FCFS', 'SJF_NP', 'SJF_P', 'PRIO_NP', 'PRIO_P', 'RR'];
+      state.algorithm = algs[Math.floor(Math.random() * algs.length)];
+      state.quantum = [3, 4, 5][Math.floor(Math.random() * 3)];
+      state.dispatcher = 0;
+      const withArrivals = Math.random() > 0.45;
+      const count = 4 + Math.floor(Math.random() * 2); // 4 o 5 procesos
+      const procs = [];
+      for (let i = 0; i < count; i++) {
+        procs.push({
+          id: 'P' + (i + 1),
+          order: i + 1,
+          arrival: (i === 0 || !withArrivals) ? 0 : [0, 0, 2, 4, 6][Math.floor(Math.random() * 5)],
+          burst: Math.floor(Math.random() * 9) + 2,
+          priority: i
+        });
+      }
+      // Mezclar prioridades
+      procs.sort(() => Math.random() - 0.5).forEach((p, idx) => {
+        p.id = 'P' + (idx + 1);
+        p.order = idx + 1;
+      });
+      // Garantizar al menos 2 procesos en t=0 para que el Paso 1 sea rico
+      procs[0].arrival = 0;
+      procs[1].arrival = 0;
+      state.processes = procs;
+      state.comparisonHistory = [];
+      syncConfigControls();
+      renderConfigTable();
+    }
+
+    /* =========================================================================
+       MOTOR DE SIMULACIÓN Y RESOLUCIÓN EXACTA (TODOS LOS ALGORITMOS + DISPATCHER)
+       ========================================================================= */
+    function compareReadyCandidates(a, b, alg, prioConv) {
+      if (alg === 'SJF_NP') {
+        if (a.burst !== b.burst) return a.burst - b.burst;
+      } else if (alg === 'SJF_P') {
+        if (a.remaining !== b.remaining) return a.remaining - b.remaining;
+      } else if (alg === 'PRIO_NP' || alg === 'PRIO_P') {
+        if (a.priority !== b.priority) {
+          return prioConv === 'LOW_IS_HIGH' ? (a.priority - b.priority) : (b.priority - a.priority);
+        }
+      }
+      // Desempate por instante de llegada a la cola y luego por orden de fila
+      if (a.queueEnterTime !== b.queueEnterTime) return a.queueEnterTime - b.queueEnterTime;
+      return a.order - b.order;
+    }
+
+    function solveScheduling(processesInput, alg, quantum, prioConv, dispatcher) {
+      const procs = processesInput.map(p => ({
+        ...p,
+        remaining: p.burst,
+        queueEnterTime: p.arrival,
+        finished: false,
+        finishTime: 0
+      }));
+
+      const rawBlocks = [];
+      let t = 0;
+      let completed = 0;
+      const n = procs.length;
+
+      if (alg === 'RR') {
+        // Simulación exacta de cola FIFO para Round Robin
+        const rrQueue = [];
+        const inQueue = new Set();
+
+        const enqueueNewArrivals = (upToTime) => {
+          const arrivals = procs
+            .filter(p => !p.finished && !inQueue.has(p.id) && p.arrival <= upToTime)
+            .sort((a, b) => (a.arrival !== b.arrival ? a.arrival - b.arrival : a.order - b.order));
+          for (const p of arrivals) {
+            rrQueue.push(p);
+            inQueue.add(p.id);
+          }
+        };
+
+        enqueueNewArrivals(0);
+
+        while (completed < n) {
+          if (rrQueue.length === 0) {
+            const nextArr = Math.min(...procs.filter(p => !p.finished).map(p => p.arrival));
+            rawBlocks.push({ procId: 'IDLE', start: t, end: nextArr, duration: nextArr - t, readyQueueSnapshot: [] });
+            t = nextArr;
+            enqueueNewArrivals(t);
+            continue;
+          }
+
+          const readySnapshot = rrQueue.map(p => p.id);
+          const current = rrQueue.shift();
+          const execDur = Math.min(quantum, current.remaining);
+
+          rawBlocks.push({
+            procId: current.id,
+            start: t,
+            end: t + execDur,
+            duration: execDur,
+            readyQueueSnapshot: readySnapshot
+          });
+
+          t += execDur;
+          current.remaining -= execDur;
+
+          // Nuevos procesos que llegaron durante (t - execDur, t]
+          enqueueNewArrivals(t);
+
+          if (current.remaining === 0) {
+            current.finished = true;
+            current.finishTime = t;
+            completed++;
+          } else {
+            current.queueEnterTime = t;
+            rrQueue.push(current);
+          }
+
+          // Si hay latencia de activación (dispatcher) y aún quedan procesos por ejecutar
+          if (dispatcher > 0 && completed < n) {
+            rawBlocks.push({
+              procId: 'DISP',
+              start: t,
+              end: t + dispatcher,
+              duration: dispatcher,
+              readyQueueSnapshot: rrQueue.map(p => p.id)
+            });
+            t += dispatcher;
+            enqueueNewArrivals(t);
+          }
+        }
+      } else {
+        // FCFS, SJF_NP, SJF_P, PRIO_NP, PRIO_P
+        const isPreemptive = (alg === 'SJF_P' || alg === 'PRIO_P');
+        let lastProcId = null;
+
+        while (completed < n) {
+          const available = procs.filter(p => !p.finished && p.arrival <= t);
+          if (available.length === 0) {
+            const nextArr = Math.min(...procs.filter(p => !p.finished).map(p => p.arrival));
+            rawBlocks.push({ procId: 'IDLE', start: t, end: nextArr, duration: nextArr - t, readyQueueSnapshot: [] });
+            t = nextArr;
+            lastProcId = 'IDLE';
+            continue;
+          }
+
+          available.sort((a, b) => compareReadyCandidates(a, b, alg, prioConv));
+          const chosen = available[0];
+          const readySnapshot = available.map(p => p.id);
+
+          // Insertar Dispatcher si cambió de proceso respecto al anterior bloque real
+          if (dispatcher > 0 && lastProcId !== null && lastProcId !== 'IDLE' && lastProcId !== chosen.id) {
+            rawBlocks.push({
+              procId: 'DISP',
+              start: t,
+              end: t + dispatcher,
+              duration: dispatcher,
+              readyQueueSnapshot: readySnapshot
+            });
+            t += dispatcher;
+            lastProcId = chosen.id;
+            continue;
+          }
+
+          if (!isPreemptive) {
+            const dur = chosen.remaining;
+            rawBlocks.push({
+              procId: chosen.id,
+              start: t,
+              end: t + dur,
+              duration: dur,
+              readyQueueSnapshot: readySnapshot
+            });
+            t += dur;
+            chosen.remaining = 0;
+            chosen.finished = true;
+            chosen.finishTime = t;
+            completed++;
+            lastProcId = chosen.id;
+          } else {
+            // Apropiativo: avanzar 1 ms y fusionar bloques consecutivos del mismo proceso
+            const prevBlock = rawBlocks[rawBlocks.length - 1];
+            if (prevBlock && prevBlock.procId === chosen.id && prevBlock.end === t) {
+              prevBlock.end += 1;
+              prevBlock.duration += 1;
+            } else {
+              rawBlocks.push({
+                procId: chosen.id,
+                start: t,
+                end: t + 1,
+                duration: 1,
+                readyQueueSnapshot: readySnapshot
+              });
+            }
+            t += 1;
+            chosen.remaining -= 1;
+            lastProcId = chosen.id;
+            if (chosen.remaining === 0) {
+              chosen.finished = true;
+              chosen.finishTime = t;
+              completed++;
+            }
+          }
+        }
+      }
+
+      // Calcular métricas individuales
+      const metrics = {};
+      let sumWait = 0;
+      let sumTurn = 0;
+
+      for (const p of procs) {
+        const tFin = p.finishTime;
+        const tRet = tFin - p.arrival;
+        const tEsp = tRet - p.burst;
+        metrics[p.id] = {
+          id: p.id,
+          arrival: p.arrival,
+          burst: p.burst,
+          priority: p.priority,
+          tFin,
+          tRet,
+          tEsp
+        };
+        sumWait += tEsp;
+        sumTurn += tRet;
+      }
+
+      return {
+        blocks: rawBlocks,
+        metrics,
+        avgWait: +(sumWait / n).toFixed(2),
+        avgTurn: +(sumTurn / n).toFixed(2)
+      };
+    }
+
+    /* =========================================================================
+       INICIO DEL ENTRENAMIENTO Y PASO 1 (COLA INICIAL EN t = 0)
+       ========================================================================= */
+    function startTraining() {
+      onParamsChange();
+      state.solution = solveScheduling(
+        state.processes,
+        state.algorithm,
+        state.quantum,
+        state.prioConvention,
+        state.dispatcher
+      );
+      state.mistakesCount = 0;
+      state.hintsUsed = 0;
+      state.userGanttBlocks = [];
+
+      setupStep1();
+      goToScreen(1);
+    }
+
+    function setupStep1() {
+      renderRulesBar('rulesBar-1');
+      document.getElementById('btnNext-1').disabled = true;
+      const fb = document.getElementById('feedback-1');
+      fb.className = 'feedback-banner';
+      fb.textContent = '';
+
+      // Pista dinámica según el algoritmo elegido
+      const hint1 = document.getElementById('hint-1');
+      hint1.classList.remove('visible');
+      let ruleDesc = '';
+      if (state.algorithm === 'FCFS' || state.algorithm === 'RR') {
+        ruleDesc = 'En <strong>FCFS / Round Robin</strong>, los procesos disponibles en t = 0 se ordenan según su orden de llegada a la cola (orden de fila en la tabla).';
+      } else if (state.algorithm.startsWith('SJF')) {
+        ruleDesc = 'En <strong>SJF</strong>, los procesos disponibles en t = 0 se ordenan de <strong>menor a mayor ráfaga de CPU</strong>. En caso de empate, se usa FCFS.';
+      } else if (state.algorithm.startsWith('PRIO')) {
+        ruleDesc = state.prioConvention === 'LOW_IS_HIGH'
+          ? 'En <strong>Prioridades (Núm. bajo = Más alta)</strong>, ordena los procesos disponibles en t = 0 empezando por el número de prioridad más pequeño (ej. 0 antes que 1).'
+          : 'En <strong>Prioridades (Núm. alto = Más alta)</strong>, ordena los procesos disponibles en t = 0 empezando por el número de prioridad más elevado.';
+      }
+      hint1.innerHTML = `<strong>Regla para el Estado Inicial (t = 0):</strong><br>1. Primero selecciona únicamente los procesos cuyo instante de llegada sea <code>0 ms</code>.<br>2. ${ruleDesc}`;
+
+      // Tabla de referencia en Paso 1
+      document.getElementById('refTableStep1').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Proceso</th>
+              <th>Orden Fila</th>
+              <th>Llegada (ms)</th>
+              <th>Ráfaga (ms)</th>
+              <th>Prioridad</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.processes.map(p => `
+              <tr>
+                <td><span class="proc-pill" style="background:${getProcColor(p.id)}">${p.id}</span></td>
+                <td>#${p.order}</td>
+                <td>${p.arrival} ms</td>
+                <td>${p.burst} ms</td>
+                <td>${p.priority}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Por defecto, seleccionamos todos en desorden o según tabla para que el alumno verifique
+      state.step1SelectedIds = new Set(state.processes.filter(p => p.arrival === 0).map(p => p.id));
+      state.step1QueueOrder = state.processes.filter(p => p.arrival === 0).map(p => p.id);
+
+      renderStep1Interactive();
+    }
+
+    function renderStep1Interactive() {
+      const checksContainer = document.getElementById('step1AvailableChecks');
+      checksContainer.innerHTML = state.processes.map(p => {
+        const checked = state.step1SelectedIds.has(p.id);
+        return `
+          <div class="check-card ${checked ? 'selected' : ''}" onclick="toggleStep1Proc('${p.id}')">
+            <input type="checkbox" ${checked ? 'checked' : ''} onclick="event.stopPropagation(); toggleStep1Proc('${p.id}')" />
+            <span class="proc-pill" style="background:${getProcColor(p.id)}">${p.id}</span>
+            <span style="font-size:0.8rem; color:var(--text-muted);">Llegada: ${p.arrival} ms</span>
+          </div>
+        `;
+      }).join('');
+
+      const queueContainer = document.getElementById('step1QueueBuilder');
+      if (state.step1QueueOrder.length === 0) {
+        queueContainer.innerHTML = `<span style="color:var(--text-muted); font-size:0.85rem;">Selecciona al menos un proceso disponible en t = 0 arriba.</span>`;
+        return;
+      }
+
+      queueContainer.innerHTML = state.step1QueueOrder.map((procId, idx) => `
+        <div class="queue-slot">
+          <span class="pos-num">${idx + 1}º</span>
+          <span class="proc-pill" style="background:${getProcColor(procId)}">${procId}</span>
+          <div class="slot-arrows">
+            <button onclick="moveQueueItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Mover antes">◀</button>
+            <button onclick="moveQueueItem(${idx}, 1)" ${idx === state.step1QueueOrder.length - 1 ? 'disabled' : ''} title="Mover después">▶</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleStep1Proc(procId) {
+      if (state.step1SelectedIds.has(procId)) {
+        state.step1SelectedIds.delete(procId);
+        state.step1QueueOrder = state.step1QueueOrder.filter(id => id !== procId);
+      } else {
+        state.step1SelectedIds.add(procId);
+        state.step1QueueOrder.push(procId);
+      }
+      document.getElementById('btnNext-1').disabled = true;
+      renderStep1Interactive();
+    }
+
+    function moveQueueItem(idx, dir) {
+      const target = idx + dir;
+      if (target < 0 || target >= state.step1QueueOrder.length) return;
+      const temp = state.step1QueueOrder[idx];
+      state.step1QueueOrder[idx] = state.step1QueueOrder[target];
+      state.step1QueueOrder[target] = temp;
+      document.getElementById('btnNext-1').disabled = true;
+      renderStep1Interactive();
+    }
+
+    function getExpectedInitialQueue() {
+      const avail = state.processes
+        .filter(p => p.arrival === 0)
+        .map(p => ({ ...p, remaining: p.burst, queueEnterTime: p.arrival }));
+      avail.sort((a, b) => compareReadyCandidates(a, b, state.algorithm, state.prioConvention));
+      return avail.map(p => p.id);
+    }
+
+    function validateStep1() {
+      const fb = document.getElementById('feedback-1');
+      const expectedQueue = getExpectedInitialQueue();
+      const expectedSet = new Set(expectedQueue);
+
+      // 1. Verificar selección de procesos en t = 0
+      const wrongSelected = [...state.step1SelectedIds].filter(id => !expectedSet.has(id));
+      const missingSelected = expectedQueue.filter(id => !state.step1SelectedIds.has(id));
+
+      if (wrongSelected.length > 0 || missingSelected.length > 0) {
+        state.mistakesCount++;
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = `❌ <strong>Error en procesos disponibles en t = 0:</strong> Revisa la columna "Instante de llegada". ${
+          wrongSelected.length > 0 ? `El proceso <strong>${wrongSelected.join(', ')}</strong> llega en t > 0, por lo que aún no está en la cola inicial.` : ''
+        } ${
+          missingSelected.length > 0 ? `Falta marcar <strong>${missingSelected.join(', ')}</strong> que sí llega en t = 0.` : ''
+        }`;
+        return;
+      }
+
+      // 2. Verificar el orden en la cola inicial
+      for (let i = 0; i < expectedQueue.length; i++) {
+        if (state.step1QueueOrder[i] !== expectedQueue[i]) {
+          state.mistakesCount++;
+          fb.className = 'feedback-banner err';
+          fb.innerHTML = `❌ <strong>El orden de la cola inicial en t = 0 no es correcto:</strong> En la posición <strong>${i + 1}º</strong> has colocado a <strong>${state.step1QueueOrder[i]}</strong>, pero según el algoritmo <strong>${getAlgorithmLabel(state.algorithm)}</strong> debería ir <strong>${expectedQueue[i]}</strong>. Usa la pista si tienes dudas sobre el criterio de ordenación.`;
+          return;
+        }
+      }
+
+      fb.className = 'feedback-banner ok';
+      fb.innerHTML = `✅ <strong>¡Paso 1 Correcto!</strong> En t = 0 la cola de listos inicial es <strong>[${expectedQueue.join(' → ')}]</strong>. Ya puedes avanzar al Paso 2 para construir el Diagrama de Gantt.`;
+      document.getElementById('btnNext-1').disabled = false;
+      setupStep2();
+    }
+
+    /* =========================================================================
+       PANTALLA 3 (ÍNDICE 2): PASO 2 — CONSTRUCCIÓN INTERACTIVA DEL GANTT
+       ========================================================================= */
+    function setupStep2() {
+      renderRulesBar('rulesBar-2');
+      state.userGanttBlocks = [];
+      document.getElementById('btnNext-2').disabled = true;
+
+      const hint2 = document.getElementById('hint-2');
+      hint2.classList.remove('visible');
+      hint2.innerHTML = `
+        <strong>¿Cómo construir el Diagrama de Gantt paso a paso?</strong><br>
+        • En cada instante <code>t</code>, observa la <strong>Cola de Listos actual</strong> y elige el proceso que está en primera posición (o el <strong>Activador / Dispatcher</strong> si hay latencia de cambio de contexto).<br>
+        • <strong>Duración del bloque:</strong>
+        ${
+          state.algorithm === 'RR'
+            ? `En <strong>Round Robin (q = ${state.quantum} ms)</strong>, el proceso ejecuta como máximo <code>${state.quantum} ms</code> (o su ráfaga restante si es menor que ${state.quantum} ms).`
+            : (state.algorithm === 'SJF_P' || state.algorithm === 'PRIO_P')
+            ? `Al ser un algoritmo <strong>apropiativo</strong>, si en mitad de la ráfaga llega un nuevo proceso más prioritario (o más corto), el bloque actual se corta exactamente en ese instante de llegada.`
+            : `Al ser un algoritmo <strong>no apropiativo</strong>, el proceso elegido ejecuta su ráfaga completa sin interrupciones.`
+        }
+      `;
+
+      const fb = document.getElementById('feedback-2');
+      fb.className = 'feedback-banner';
+      fb.textContent = '';
+
+      refreshStep2View();
+    }
+
+    function getCurrentStep2Time() {
+      if (state.userGanttBlocks.length === 0) return 0;
+      return state.userGanttBlocks[state.userGanttBlocks.length - 1].end;
+    }
+
+    function refreshStep2View() {
+      const nextIdx = state.userGanttBlocks.length;
+      const totalBlocks = state.solution.blocks.length;
+      const curTime = getCurrentStep2Time();
+
+      document.getElementById('currentTimeLabel').textContent = curTime;
+      document.getElementById('currentTimeLabel2').textContent = curTime;
+      document.getElementById('currentTimeLabel3').textContent = curTime;
+
+      // Calcular ráfagas restantes en curTime según los bloques ya añadidos
+      const executedByProc = {};
+      state.processes.forEach(p => { executedByProc[p.id] = 0; });
+      state.userGanttBlocks.forEach(b => {
+        if (executedByProc[b.procId] !== undefined) {
+          executedByProc[b.procId] += b.duration;
+        }
+      });
+
+      const statusBody = document.getElementById('step2StatusBody');
+      statusBody.innerHTML = state.processes.map(p => {
+        const rem = p.burst - executedByProc[p.id];
+        let badge = '';
+        if (rem === 0) {
+          badge = `<span style="color:var(--success); font-weight:700;">✔ Completado</span>`;
+        } else if (p.arrival <= curTime) {
+          badge = `<span style="color:var(--accent); font-weight:700;">En Cola de Listos</span>`;
+        } else {
+          badge = `<span style="color:var(--text-muted);">Llega en t = ${p.arrival} ms</span>`;
+        }
+        return `
+          <tr>
+            <td><span class="proc-pill" style="background:${getProcColor(p.id)}">${p.id}</span></td>
+            <td>${p.arrival} ms</td>
+            <td>${p.burst} ms</td>
+            <td><strong>${rem} ms</strong></td>
+            <td>${p.priority}</td>
+            <td>${badge}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Mostrar Cola de Listos en tiempo real usando el snapshot del bloque esperado
+      const liveQueueBox = document.getElementById('liveReadyQueueBox');
+      if (nextIdx >= totalBlocks) {
+        liveQueueBox.innerHTML = `<span style="color:var(--success); font-weight:700;">🎉 Todos los procesos han finalizado en t = ${curTime} ms.</span>`;
+      } else {
+        const expectedBlock = state.solution.blocks[nextIdx];
+        const snap = expectedBlock.readyQueueSnapshot || [];
+        if (expectedBlock.procId === 'DISP') {
+          liveQueueBox.innerHTML = `<span style="color:var(--warning); font-weight:600;">⚡ Cambio de contexto pendiente: toca ejecutar el Activador / Dispatcher (${state.dispatcher} ms).</span>`;
+        } else if (snap.length === 0) {
+          liveQueueBox.innerHTML = `<span style="color:var(--text-muted);">Cola vacía en t = ${curTime} ms (CPU Ociosa).</span>`;
+        } else {
+          liveQueueBox.innerHTML = snap.map((id, i) => `
+            <span style="display:inline-flex; align-items:center; gap:0.3rem;">
+              <span style="font-size:0.75rem; color:var(--text-muted);">${i === 0 ? '👉 1º:' : (i + 1) + 'º:'}</span>
+              <span class="proc-pill" style="background:${getProcColor(id)}">${id}</span>
+            </span>
+          `).join(' <span style="color:var(--text-muted);">←</span> ');
+        }
+      }
+
+      // Selector de proceso a insertar
+      const selectEl = document.getElementById('ganttProcSelect');
+      const options = state.processes.map(p => `<option value="${p.id}">${p.id}</option>`);
+      if (state.dispatcher > 0) {
+        options.push(`<option value="DISP">Activador / Dispatcher (SO)</option>`);
+      }
+      selectEl.innerHTML = options.join('');
+
+      // Dibujar Diagrama de Gantt actual
+      renderGanttChart('ganttTrack', state.userGanttBlocks);
+
+      // Estado del botón de siguiente pantalla
+      const isDone = (state.userGanttBlocks.length === totalBlocks);
+      document.getElementById('btnAddBlock').disabled = isDone;
+      document.getElementById('btnNext-2').disabled = !isDone;
+      if (isDone) {
+        setupStep3();
+      }
+    }
+
+    function renderGanttChart(containerId, blocks) {
+      const track = document.getElementById(containerId);
+      if (!blocks || blocks.length === 0) {
+        track.innerHTML = `<div style="padding:1.1rem; color:var(--text-muted); font-size:0.88rem;">El diagrama de Gantt está vacío (t = 0 ms). Añade el primer bloque de ejecución.</div>`;
+        return;
+      }
+
+      const totalDuration = blocks[blocks.length - 1].end || 1;
+      track.innerHTML = blocks.map((b, idx) => {
+        const widthPct = Math.max(7, (b.duration / totalDuration) * 100);
+        const label = b.procId === 'DISP' ? 'Disp.' : b.procId;
+        return `
+          <div class="gantt-block" style="flex: ${b.duration} 1 ${widthPct}%; background:${getProcColor(b.procId)};">
+            <span>${label}</span>
+            <span class="b-dur">(${b.duration} ms)</span>
+            ${idx === 0 ? `<span class="gantt-time-start">${b.start}</span>` : ''}
+            <span class="gantt-time-end">${b.end}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function tryAddGanttBlock() {
+      const fb = document.getElementById('feedback-2');
+      const nextIdx = state.userGanttBlocks.length;
+      if (nextIdx >= state.solution.blocks.length) return;
+
+      const expected = state.solution.blocks[nextIdx];
+      const chosenProc = document.getElementById('ganttProcSelect').value;
+      const chosenDur = parseInt(document.getElementById('ganttDurInput').value, 10);
+
+      if (isNaN(chosenDur) || chosenDur <= 0) {
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = `❌ Introduce una duración válida en milisegundos (mayor que 0).`;
+        return;
+      }
+
+      // 1. Validar si eligió el proceso (o Dispatcher) correcto en este instante
+      if (chosenProc !== expected.procId) {
+        state.mistakesCount++;
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = explainWrongProcessChoice(chosenProc, expected);
+        return;
+      }
+
+      // 2. Validar si eligió la duración correcta del bloque
+      if (chosenDur !== expected.duration) {
+        state.mistakesCount++;
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = explainWrongDurationChoice(chosenProc, chosenDur, expected);
+        return;
+      }
+
+      // Bloque correcto: añadir al Gantt
+      state.userGanttBlocks.push({ ...expected });
+      refreshStep2View();
+
+      if (state.userGanttBlocks.length === state.solution.blocks.length) {
+        fb.className = 'feedback-banner ok';
+        fb.innerHTML = `✅ <strong>¡Diagrama de Gantt completado correctamente hasta t = ${expected.end} ms!</strong> Pulsa en "Avanzar a Tiempos Individuales" para continuar.`;
+      } else {
+        fb.className = 'feedback-banner ok';
+        fb.innerHTML = `✔ Bloque correcto: <strong>${expected.procId === 'DISP' ? 'Activador (Dispatcher)' : expected.procId}</strong> ejecuta <strong>${expected.duration} ms</strong> (desde t = ${expected.start} hasta t = ${expected.end} ms).`;
+      }
+    }
+
+    function explainWrongProcessChoice(chosenId, expected) {
+      const t = expected.start;
+      if (expected.procId === 'DISP') {
+        return `❌ <strong>Error en t = ${t} ms:</strong> Antes de cargar el siguiente proceso de usuario, debe ejecutarse el <strong>Activador / Dispatcher</strong> del sistema operativo durante <strong>${state.dispatcher} ms</strong> por el cambio de contexto.`;
+      }
+      if (chosenId === 'DISP') {
+        return `❌ <strong>Error en t = ${t} ms:</strong> En este instante no corresponde ejecutar el Activador, sino cargar directamente el proceso <strong>${expected.procId}</strong>.`;
+      }
+
+      const chosenProcObj = state.processes.find(p => p.id === chosenId);
+      const expectedProcObj = state.processes.find(p => p.id === expected.procId);
+
+      // Comprobar si aún no ha llegado
+      if (chosenProcObj && chosenProcObj.arrival > t) {
+        return `❌ <strong>Error en t = ${t} ms:</strong> El proceso <strong>${chosenId}</strong> todavía no ha llegado a la cola (su instante de llegada es <strong>t = ${chosenProcObj.arrival} ms</strong>). El proceso listo que debe entrar es <strong>${expected.procId}</strong>.`;
+      }
+
+      // Comprobar si ya había terminado
+      const alreadyExec = state.userGanttBlocks
+        .filter(b => b.procId === chosenId)
+        .reduce((acc, b) => acc + b.duration, 0);
+      if (chosenProcObj && alreadyExec >= chosenProcObj.burst) {
+        return `❌ <strong>Error en t = ${t} ms:</strong> El proceso <strong>${chosenId}</strong> ya ha completado toda su ráfaga de ${chosenProcObj.burst} ms. Mira la Cola de Listos actual: le toca a <strong>${expected.procId}</strong>.`;
+      }
+
+      if (state.algorithm.startsWith('SJF')) {
+        return `❌ <strong>Error en t = ${t} ms:</strong> Has elegido <strong>${chosenId}</strong>, pero según <strong>SJF</strong> el proceso disponible con menor ráfaga en la cola es <strong>${expected.procId}</strong>.`;
+      }
+      if (state.algorithm.startsWith('PRIO')) {
+        return `❌ <strong>Error en t = ${t} ms:</strong> Has elegido <strong>${chosenId}</strong> (prioridad ${chosenProcObj.priority}), pero en la cola está disponible <strong>${expected.procId}</strong> con mayor prioridad (prioridad ${expectedProcObj.priority}).`;
+      }
+      if (state.algorithm === 'RR') {
+        return `❌ <strong>Error en t = ${t} ms:</strong> En <strong>Round Robin</strong> la cola es FIFO estricta. El proceso situado al frente de la cola en este instante es <strong>${expected.procId}</strong>, no ${chosenId}.`;
+      }
+      return `❌ <strong>Error en t = ${t} ms:</strong> Según el orden de la cola FCFS, el proceso que está primero para entrar en la CPU es <strong>${expected.procId}</strong>.`;
+    }
+
+    function explainWrongDurationChoice(procId, chosenDur, expected) {
+      const t = expected.start;
+      if (procId === 'DISP') {
+        return `❌ <strong>Duración incorrecta:</strong> La latencia de activación (Dispatcher) configurada en el enunciado es de <strong>${expected.duration} ms</strong>.`;
+      }
+
+      const procObj = state.processes.find(p => p.id === procId);
+      const alreadyExec = state.userGanttBlocks
+        .filter(b => b.procId === procId)
+        .reduce((acc, b) => acc + b.duration, 0);
+      const remaining = procObj.burst - alreadyExec;
+
+      if (state.algorithm === 'RR') {
+        if (chosenDur > state.quantum) {
+          return `❌ <strong>Error de duración en Round Robin:</strong> Has indicado ${chosenDur} ms, pero el <strong>cuanto máximo es q = ${state.quantum} ms</strong>. Ningún proceso puede ejecutar más de ${state.quantum} ms seguidos.`;
+        }
+        if (chosenDur > remaining) {
+          return `❌ <strong>Error de duración:</strong> A <strong>${procId}</strong> solo le quedan <strong>${remaining} ms</strong> de ráfaga restante, por lo que libera la CPU voluntariamente tras ejecutar <strong>${expected.duration} ms</strong>.`;
+        }
+        return `❌ <strong>Error de duración en Round Robin:</strong> A <strong>${procId}</strong> le quedan ${remaining} ms y el cuanto es q = ${state.quantum} ms, por lo que debe ejecutar exactamente <strong>${expected.duration} ms</strong>.`;
+      }
+
+      if ((state.algorithm === 'PRIO_P' || state.algorithm === 'SJF_P') && chosenDur > expected.duration) {
+        const preemptTime = expected.end;
+        const nextBlock = state.solution.blocks[state.userGanttBlocks.length + 1];
+        const preemptor = nextBlock ? nextBlock.procId : 'otro proceso';
+        return `❌ <strong>¡Atención al desalojo (Algoritmo Apropiativo)!</strong> En <strong>t = ${preemptTime} ms</strong> llega <strong>${preemptor}</strong> con mayor prioridad/menor ráfaga y desaloja a <strong>${procId}</strong>. Por tanto, este bloque solo dura <strong>${expected.duration} ms</strong> (desde t = ${t} hasta t = ${preemptTime}).`;
+      }
+
+      return `❌ <strong>Duración incorrecta:</strong> Al proceso <strong>${procId}</strong> le restan <strong>${remaining} ms</strong> de ráfaga y debe ejecutar <strong>${expected.duration} ms</strong> en este bloque.`;
+    }
+
+    function undoGanttBlock() {
+      if (state.userGanttBlocks.length === 0) return;
+      state.userGanttBlocks.pop();
+      const fb = document.getElementById('feedback-2');
+      fb.className = 'feedback-banner';
+      fb.textContent = '';
+      refreshStep2View();
+    }
+
+    function validateStep2Complete() {
+      const fb = document.getElementById('feedback-2');
+      if (state.userGanttBlocks.length < state.solution.blocks.length) {
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = `⚠️ El diagrama de Gantt aún no está completo. Llevas ${state.userGanttBlocks.length} de ${state.solution.blocks.length} bloques necesarios para terminar todas las ráfagas.`;
+        return;
+      }
+      fb.className = 'feedback-banner ok';
+      fb.innerHTML = `✅ <strong>¡Diagrama de Gantt 100% validado!</strong> Ya puedes avanzar al Paso 3.`;
+      document.getElementById('btnNext-2').disabled = false;
+      setupStep3();
+    }
+
+    /* =========================================================================
+       PANTALLA 4 (ÍNDICE 3): PASO 3 — CÁLCULO DE TIEMPOS INDIVIDUALES
+       ========================================================================= */
+    function setupStep3() {
+      renderRulesBar('rulesBar-3');
+      renderGanttChart('ganttTrackRef3', state.solution.blocks);
+      document.getElementById('btnNext-3').disabled = true;
+
+      const fb = document.getElementById('feedback-3');
+      fb.className = 'feedback-banner';
+      fb.textContent = '';
+
+      const tbody = document.getElementById('step3TableBody');
+      tbody.innerHTML = state.processes.map(p => `
+        <tr>
+          <td><span class="proc-pill" style="background:${getProcColor(p.id)}">${p.id}</span></td>
+          <td>${p.arrival} ms</td>
+          <td>${p.burst} ms</td>
+          <td>
+            <input type="number" id="in-tfin-${p.id}" placeholder="Tfin" style="max-width:110px; text-align:center;" />
+            <span class="cell-formula-feedback" id="err-tfin-${p.id}"></span>
+          </td>
+          <td>
+            <input type="number" id="in-tret-${p.id}" placeholder="Tret" style="max-width:110px; text-align:center;" />
+            <span class="cell-formula-feedback" id="err-tret-${p.id}"></span>
+          </td>
+          <td>
+            <input type="number" id="in-tesp-${p.id}" placeholder="Tesp" style="max-width:110px; text-align:center;" />
+            <span class="cell-formula-feedback" id="err-tesp-${p.id}"></span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function validateStep3() {
+      let allOk = true;
+
+      for (const p of state.processes) {
+        const exp = state.solution.metrics[p.id];
+        const inFin = document.getElementById(`in-tfin-${p.id}`);
+        const inRet = document.getElementById(`in-tret-${p.id}`);
+        const inEsp = document.getElementById(`in-tesp-${p.id}`);
+
+        const errFin = document.getElementById(`err-tfin-${p.id}`);
+        const errRet = document.getElementById(`err-tret-${p.id}`);
+        const errEsp = document.getElementById(`err-tesp-${p.id}`);
+
+        const valFin = parseInt(inFin.value, 10);
+        const valRet = parseInt(inRet.value, 10);
+        const valEsp = parseInt(inEsp.value, 10);
+
+        // Validar Tfin
+        if (valFin === exp.tFin) {
+          inFin.className = 'input-ok';
+          errFin.textContent = '';
+        } else {
+          allOk = false;
+          inFin.className = 'input-err';
+          errFin.textContent = `Revisa en el Gantt cuándo acaba el último bloque de ${p.id}`;
+        }
+
+        // Validar Tret = Tfin - Tllegada
+        if (valRet === exp.tRet) {
+          inRet.className = 'input-ok';
+          errRet.textContent = '';
+        } else {
+          allOk = false;
+          inRet.className = 'input-err';
+          errRet.textContent = `Fórmula: Tret = Tfin (${exp.tFin}) − Tllegada (${p.arrival})`;
+        }
+
+        // Validar Tesp = Tret - Ráfaga
+        if (valEsp === exp.tEsp) {
+          inEsp.className = 'input-ok';
+          errEsp.textContent = '';
+        } else {
+          allOk = false;
+          inEsp.className = 'input-err';
+          errEsp.textContent = `Fórmula: Tesp = Tret (${exp.tRet}) − Ráfaga (${p.burst})`;
+        }
+      }
+
+      const fb = document.getElementById('feedback-3');
+      if (!allOk) {
+        state.mistakesCount++;
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = `❌ <strong>Hay errores en algunas celdas (marcadas en rojo).</strong> Revisa la fórmula indicada debajo de cada casilla incorrecta y vuelve a comprobar.`;
+        document.getElementById('btnNext-3').disabled = true;
+      } else {
+        fb.className = 'feedback-banner ok';
+        fb.innerHTML = `✅ <strong>¡Todos los tiempos individuales son exactos!</strong> Pulsa en "Avanzar al Cálculo de Medias" para completar el ejercicio.`;
+        document.getElementById('btnNext-3').disabled = false;
+        setupStep4();
+      }
+    }
+
+    /* =========================================================================
+       PANTALLA 5 (ÍNDICE 4): PASO 4 — CÁLCULO DE MEDIAS Y COMPARATIVA FINAL
+       ========================================================================= */
+    function setupStep4() {
+      document.getElementById('finalSummaryPanel').style.display = 'none';
+      document.getElementById('avgWaitInput').value = '';
+      document.getElementById('avgTurnInput').value = '';
+      document.getElementById('avgWaitInput').className = '';
+      document.getElementById('avgTurnInput').className = '';
+      document.getElementById('avgWaitFeedback').textContent = '';
+      document.getElementById('avgTurnFeedback').textContent = '';
+
+      const fb = document.getElementById('feedback-4');
+      fb.className = 'feedback-banner';
+      fb.textContent = '';
+
+      // Tabla resumen con los tiempos validados
+      const refBox = document.getElementById('step4RefTable');
+      refBox.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Proceso</th>
+              <th>T<sub>fin</sub></th>
+              <th>T<sub>ret</sub></th>
+              <th>T<sub>esp</sub></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.processes.map(p => {
+              const m = state.solution.metrics[p.id];
+              return `
+                <tr>
+                  <td><span class="proc-pill" style="background:${getProcColor(p.id)}">${p.id}</span></td>
+                  <td>${m.tFin} ms</td>
+                  <td>${m.tRet} ms</td>
+                  <td><strong>${m.tEsp} ms</strong></td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function validateStep4() {
+      const rawWait = document.getElementById('avgWaitInput').value.replace(',', '.').trim();
+      const rawTurn = document.getElementById('avgTurnInput').value.replace(',', '.').trim();
+
+      const valWait = parseFloat(rawWait);
+      const valTurn = parseFloat(rawTurn);
+
+      const expWait = state.solution.avgWait;
+      const expTurn = state.solution.avgTurn;
+
+      const inWait = document.getElementById('avgWaitInput');
+      const inTurn = document.getElementById('avgTurnInput');
+      const errWait = document.getElementById('avgWaitFeedback');
+      const errTurn = document.getElementById('avgTurnFeedback');
+
+      const waitList = state.processes.map(p => state.solution.metrics[p.id].tEsp);
+      const turnList = state.processes.map(p => state.solution.metrics[p.id].tRet);
+      const n = state.processes.length;
+
+      let okWait = !isNaN(valWait) && Math.abs(valWait - expWait) <= 0.06;
+      let okTurn = !isNaN(valTurn) && Math.abs(valTurn - expTurn) <= 0.06;
+
+      if (okWait) {
+        inWait.className = 'input-ok';
+        errWait.textContent = '';
+      } else {
+        inWait.className = 'input-err';
+        errWait.textContent = `Fórmula: (${waitList.join(' + ')}) / ${n} = ${expWait} ms`;
+      }
+
+      if (okTurn) {
+        inTurn.className = 'input-ok';
+        errTurn.textContent = '';
+      } else {
+        inTurn.className = 'input-err';
+        errTurn.textContent = `Fórmula: (${turnList.join(' + ')}) / ${n} = ${expTurn} ms`;
+      }
+
+      const fb = document.getElementById('feedback-4');
+      if (!okWait || !okTurn) {
+        state.mistakesCount++;
+        fb.className = 'feedback-banner err';
+        fb.innerHTML = `❌ <strong>Revisa el cálculo de las medias marcadas en rojo.</strong>`;
+        return;
+      }
+
+      fb.className = 'feedback-banner ok';
+      fb.innerHTML = `✅ <strong>¡Cálculo perfecto!</strong> Tiempo medio de espera t<sub>me</sub> = <strong>${expWait} ms</strong> · Tiempo medio de retorno t<sub>mr</sub> = <strong>${expTurn} ms</strong>.`;
+
+      showFinalSummary();
+    }
+
+    function showFinalSummary() {
+      const score = Math.max(40, 100 - state.mistakesCount * 8 - state.hintsUsed * 3);
+      const labelAlg = getAlgorithmLabel(state.algorithm) + (state.dispatcher > 0 ? ` + Disp(${state.dispatcher}ms)` : '');
+
+      // Guardar en historial comparativo si no está ya
+      if (!state.comparisonHistory.some(h => h.algLabel === labelAlg)) {
+        state.comparisonHistory.push({
+          algLabel: labelAlg,
+          avgWait: state.solution.avgWait,
+          avgTurn: state.solution.avgTurn,
+          blocksCount: state.solution.blocks.length
+        });
+      }
+
+      document.getElementById('scoreCardsBox').innerHTML = `
+        <div class="panel" style="text-align:center;">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Puntuación del Entrenamiento</div>
+          <div style="font-size:1.8rem; font-weight:800; color:var(--success);">${score} / 100</div>
+          <div style="font-size:0.76rem; color:var(--text-muted);">Errores: ${state.mistakesCount} · Pistas usadas: ${state.hintsUsed}</div>
+        </div>
+        <div class="panel" style="text-align:center;">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Tiempo Medio de Espera (t<sub>me</sub>)</div>
+          <div style="font-size:1.8rem; font-weight:800; color:var(--accent);">${state.solution.avgWait} ms</div>
+          <div style="font-size:0.76rem; color:var(--text-muted);">${labelAlg}</div>
+        </div>
+        <div class="panel" style="text-align:center;">
+          <div style="font-size:0.8rem; color:var(--text-muted);">Tiempo Medio de Retorno (t<sub>mr</sub>)</div>
+          <div style="font-size:1.8rem; font-weight:800; color:var(--text-main);">${state.solution.avgTurn} ms</div>
+          <div style="font-size:0.76rem; color:var(--text-muted);">Total bloques Gantt: ${state.solution.blocks.length}</div>
+        </div>
+      `;
+
+      document.getElementById('comparisonHistoryTable').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Algoritmo Resuelto</th>
+              <th>Tiempo Medio de Espera (t<sub>me</sub>)</th>
+              <th>Tiempo Medio de Retorno (t<sub>mr</sub>)</th>
+              <th>Bloques en Gantt</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${state.comparisonHistory.map(h => `
+              <tr>
+                <td><strong>${h.algLabel}</strong></td>
+                <td style="color:var(--accent); font-weight:700;">${h.avgWait} ms</td>
+                <td>${h.avgTurn} ms</td>
+                <td>${h.blocksCount}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById('finalSummaryPanel').style.display = 'block';
+    }
+
+    function retrySameWithOtherAlgorithm() {
+      const nextAlg = document.getElementById('switchAlgSelect').value;
+      state.algorithm = nextAlg;
+      if (nextAlg === 'RR' && (!state.quantum || state.quantum < 1)) {
+        state.quantum = 4;
+      }
+      syncConfigControls();
+      startTraining();
+    }
+
+    // Inicializar con el Ejercicio 1 del Cuaderno UNIR al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPreset('unir_ej1_fcfs');
+    });
+  </script>
+</body>
+</html>
